@@ -206,7 +206,7 @@ if uploaded_file is not None:
         distances, _ = spatial_tree.query(
             np.column_stack((XI.ravel(), YI.ravel()))
         )
-        grid_mask = distances.reshape(XI.shape) > (max_edge_length * 1.5)
+        grid_mask = distances.reshape(XI.shape) > (max_edge_length * 1.0)
         ZI[grid_mask] = np.nan
 
       st.success("Advanced surface modeling and interpolation computed successfully!")
