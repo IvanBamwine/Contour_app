@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import pyproj
 from scipy.interpolate import griddata
 from scipy.spatial import Delaunay, KDTree
 import streamlit as st
@@ -18,14 +19,23 @@ st.set_page_config(
 
 st.title("Advanced Topographic Contour Generator & Terrain Modeler")
 st.markdown(
-    "Upload a single survey CSV file, map columns dynamically, split"
-    " spot-heights and breaklines via code logic, and render interactive 3D"
-    " terrain meshes."
+    "Upload a single survey CSV file, choose your input coordinate system,"
+    " map columns dynamically, and render interactive 3D terrain meshes."
 )
 
-st.sidebar.header("1. Data Input")
+st.sidebar.header("1. Data Input & Coordinate System")
 uploaded_file = st.sidebar.file_uploader(
     "Upload Combined Survey File (CSV or TXT)", type=["csv", "txt"]
+)
+
+# --- Coordinate Reference System (CRS) Selection ---
+crs_choice = st.sidebar.selectbox(
+    "Select Input Coordinate System:",
+    [
+        "UTM Zone 36N (Meters - East Africa / Uganda)",
+        "UTM Zone 35N (Meters - West / Central Uganda)",
+        "WGS 84 (Latitude / Longitude - Degrees)",
+    ],
 )
 
 if uploaded_file is not None:
@@ -47,12 +57,12 @@ if uploaded_file is not None:
   default_code = columns[3] if len(columns) > 3 else columns[0]
 
   easting_col = st.sidebar.selectbox(
-      "Easting / X Coordinate",
+      "Easting / X Coordinate / Longitude",
       columns,
       index=columns.index(default_east) if default_east in columns else 0,
   )
   northing_col = st.sidebar.selectbox(
-      "Northing / Y Coordinate",
+      "Northing / Y Coordinate / Latitude",
       columns,
       index=columns.index(default_north) if default_north in columns else 1,
   )
@@ -109,13 +119,38 @@ if uploaded_file is not None:
         )
         st.stop()
 
-      vertices = np.column_stack((all_x[valid_mask], all_y[valid_mask]))
+      raw_x = all_x[valid_mask]
+      raw_y = all_y[valid_mask]
       z_values = all_z[valid_mask]
+
+      # --- Coordinate System Transformation ---
+      if "WGS 84" in crs_choice:
+        st.info(
+            "Transforming WGS 84 (Lat/Long degrees) to UTM Zone 36N projected"
+            " meters for modeling..."
+        )
+        transformer = pyproj.Transformer.from_crs(
+            "EPSG:4326", "EPSG:32636", always_xy=True
+        )
+        x_coords, y_coords = transformer.transform(raw_x, raw_y)
+      elif "Zone 35N" in crs_choice:
+        st.info(
+            "Mapping input coordinates under UTM Zone 35N (EPSG:32635)..."
+        )
+        transformer = pyproj.Transformer.from_crs(
+            "EPSG:32635", "EPSG:32635", always_xy=True
+        )
+        x_coords, y_coords = transformer.transform(raw_x, raw_y)
+      else:
+        # Default UTM Zone 36N projected meters
+        x_coords, y_coords = raw_x, raw_y
+
+      vertices = np.column_stack((x_coords, y_coords))
 
       if use_spatial_index:
         spatial_tree = KDTree(vertices)
 
-      # Generate robust Delaunay triangulation directly from valid vertices
+      # Generate robust Delaunay triangulation directly from processed vertices
       triangles = None
       if len(vertices) >= 3:
         try:
@@ -205,8 +240,8 @@ if uploaded_file is not None:
         fig_3d.update_layout(
             title="3D Digital Elevation Model (DEM)",
             scene=dict(
-                xaxis_title="Easting (m)",
-                yaxis_title="Northing (m)",
+                xaxis_title="Easting / Longitude (m or deg)",
+                yaxis_title="Northing / Latitude (m or deg)",
                 zaxis_title="Elevation (m)",
             ),
             autosize=True,
@@ -232,8 +267,8 @@ if uploaded_file is not None:
         )
         fig_contour.update_layout(
             title="2D Contour Plot",
-            xaxis_title="Easting (m)",
-            yaxis_title="Northing (m)",
+            xaxis_title="Easting / Longitude",
+            yaxis_title="Northing / Latitude",
             autosize=True,
             margin=dict(l=0, r=0, b=0, t=40),
         )
