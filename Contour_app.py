@@ -200,13 +200,13 @@ if uploaded_file is not None:
       XI, YI = np.meshgrid(xi, yi)
 
       ZI = griddata(vertices, z_values, (XI, YI), method=interpolation_method)
-      ZI = np.nan_to_num(ZI, nan=np.nanmean(z_values))
 
+      # Apply spatial index mask to clip exterior boundaries cleanly
       if use_spatial_index:
         distances, _ = spatial_tree.query(
             np.column_stack((XI.ravel(), YI.ravel()))
         )
-        grid_mask = distances.reshape(XI.shape) > (max_edge_length * 1.0)
+        grid_mask = distances.reshape(XI.shape) > max_edge_length
         ZI[grid_mask] = np.nan
 
       st.success("Advanced surface modeling and interpolation computed successfully!")
