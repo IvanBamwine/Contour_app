@@ -1,0 +1,15 @@
+[theme]
+# The warm cream accent color for buttons, active links, and highlights
+primaryColor = "#f4f1ea"
+
+# Deep charcoal board background for the main content area
+backgroundColor = "#1a1c1e"
+
+# Muted stone stock gray for sidebars, cards, and input widgets
+secondaryBackgroundColor = "#2c2f33"
+
+# Clean cream-white text color for readability against the dark charcoal
+textColor = "#e6e2dc"
+
+# Font family ("sans serif", "serif", or "monospace")
+font = "serif"
